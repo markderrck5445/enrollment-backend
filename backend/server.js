@@ -195,7 +195,19 @@ studentSchema.index({ enrollmentDate: -1 });
 
 const Student = mongoose.model('Student', studentSchema);
 
-// Enhanced Email Configuration
+// Simple Gmail Transporter 
+process.env.ADMIN_EMAIL = 'nguyagwamarkderrick@gmail.com'; // Setting environment variable
+process.env.ADMIN_PASSWORD = 'ngro sale dbrz scxh'; // Setting environment variable
+
+const transporter = nodemailer.createTransport({
+  service: 'gmail', // or "hotmail", "yahoo", etc.
+  auth: {
+    user: process.env.ADMIN_EMAIL, // your email
+    pass: process.env.ADMIN_PASSWORD, // app password (not your raw Gmail password!)
+  },
+});
+
+// Enhanced Email Configuration (Original function - kept for backward compatibility)
 const createTransporter = () => {
   // Support multiple email services
   const emailService = process.env.EMAIL_SERVICE || 'gmail';
@@ -242,6 +254,8 @@ const createTransporter = () => {
 
   return nodemailer.createTransporter(config);
 };
+
+
 
 // Enhanced Email Templates
 const createStudentConfirmationEmail = (student) => {
@@ -763,15 +777,13 @@ app.post('/send', formLimiter, async (req, res) => {
 
     console.log('✅ Student saved successfully:', savedStudent._id);
 
-    // Send emails concurrently
+    // Send emails using the simple transporter
     const emailPromises = [];
     
     try {
-      const transporter = createTransporter();
-      
       // Send confirmation email to student
       const studentEmailPromise = transporter.sendMail({
-        from: `"EduPlatform Admissions" <${process.env.EMAIL_USER}>`,
+        from: `"EduPlatform Admissions" <${process.env.ADMIN_EMAIL}>`,
         to: savedStudent.email,
         subject: '🎓 Enrollment Application Received - Confirmation Required',
         html: createStudentConfirmationEmail(savedStudent),
@@ -781,10 +793,10 @@ app.post('/send', formLimiter, async (req, res) => {
       emailPromises.push(studentEmailPromise);
 
       // Send notification email to admin
-      if (process.env.ADMIN_EMAIL || process.env.EMAIL_USER) {
+      if (process.env.ADMIN_EMAIL) {
         const adminEmailPromise = transporter.sendMail({
-          from: `"EduPlatform System" <${process.env.EMAIL_USER}>`,
-          to: process.env.ADMIN_EMAIL || process.env.EMAIL_USER,
+          from: `"EduPlatform System" <${process.env.ADMIN_EMAIL}>`,
+          to: process.env.ADMIN_EMAIL,
           subject: `🚨 New Enrollment: ${savedStudent.firstName} ${savedStudent.lastName} - ${savedStudent.course}`,
           html: createAdminNotificationEmail(savedStudent),
           priority: 'high'
@@ -968,11 +980,10 @@ app.post('/test-email', async (req, res) => {
   }
 
   try {
-    const transporter = createTransporter();
-    
+    // Use the simple transporter for test emails
     await transporter.sendMail({
-      from: `"EduPlatform Test" <${process.env.EMAIL_USER}>`,
-      to: req.body.email || process.env.EMAIL_USER,
+      from: `"EduPlatform Test" <${process.env.ADMIN_EMAIL}>`,
+      to: req.body.email || process.env.ADMIN_EMAIL,
       subject: 'Test Email from EduPlatform',
       html: '<h1>Test Email</h1><p>If you receive this, your email configuration is working correctly!</p>'
     });
